@@ -174,6 +174,57 @@ exports.restoreProduct = async (req, res) => {
 };
 
 // ✅ SOFT DELETE all products by category
+// Permanent delete a soft deleted product
+exports.permanentDeleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (!product.isDeleted) {
+      return res
+        .status(400)
+        .json({ message: "Product must be moved to deleted list first" });
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ message: "Product permanently deleted successfully" });
+  } catch (err) {
+    console.error("Error permanently deleting product:", err);
+    res.status(500).json({ message: "Failed to permanently delete product" });
+  }
+};
+
+// Bulk permanent delete for soft deleted products
+exports.bulkPermanentDeleteProducts = async (req, res) => {
+  try {
+    const productIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+    if (productIds.length === 0) {
+      return res.status(400).json({ message: "productIds array is required" });
+    }
+
+    const result = await Product.deleteMany({
+      _id: { $in: productIds },
+      isDeleted: true,
+    });
+
+    if (result.deletedCount === 0) {
+      return res
+        .status(404)
+        .json({ message: "No deleted products found for provided IDs" });
+    }
+
+    res.json({
+      message: "Selected products permanently deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (err) {
+    console.error("Error bulk permanently deleting products:", err);
+    res.status(500).json({ message: "Failed to permanently delete products" });
+  }
+};
+
 exports.deleteCategoryProducts = async (req, res) => {
   try {
     const category = decodeURIComponent(req.params.category || "").trim();
